@@ -1,6 +1,6 @@
 # PLAN.md — Business Entity Resolution (Amazon ML Challenge 2026)
 
-**Status:** **Phase 0 complete (2026-09-25).** Awaiting sign-off for Phase 1.
+**Status:** **Phases 0-1 complete (2026-09-25).** Awaiting sign-off for Phase 2.
 Environment live on `cmslab`, schema verified, R0 submission passes the validator.
 **Author:** lead ML engineer · **Reviewer/PO:** Tanish
 **Written:** 2026-09-25
@@ -367,8 +367,20 @@ metadata and parameter counts summed from the loaded weights — neither is from
 **Files:** `src/stats.py`, `notebooks/` or `reports/eda.md` (written output, not a live notebook)
 
 **Done when:** `reports/eda.md` exists with the numbers above, and specifically answers: *how much
-recall can a purely lexical pipeline reach?* That answer determines whether Phase 6 is on the
-critical path or optional.
+recall can a purely lexical pipeline reach?* That answer determines whether the embedding channel
+is on the critical path or optional.
+
+**RESULT — answered decisively. Lexical ceiling is 99.86%; only 0.14% of true matches are
+unreachable lexically.** Name alone 90.46%, address alone 94.78%. Transliterated Indic names are
+reachable ~1% by name but 98-99% via address, so **the address channel solves transliteration, not
+embeddings**. Distractors are 26.6% (S2) / 25.4% (S3) — precision, not recall, is where the score
+is decided. DF profiles confirm legal-form tokens sit in a high-frequency band shared across
+countries, so derived stopwords should generalise to France unchanged.
+
+**PROPOSED PLAN CHANGE (needs your approval):** drop the embedding channel from Phase 3 blocking —
+0.14% recall cannot repay the GPU hours and 7.7 GB. Keep embeddings only as a candidate *matching
+feature* in Phase 4, where they address a real precision gap for Indic-script records pulled in by
+address. See `reports/eda.md` §6.
 
 ---
 
