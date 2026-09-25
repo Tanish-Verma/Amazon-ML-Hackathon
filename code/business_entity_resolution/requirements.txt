@@ -1,0 +1,22 @@
+# Pinned dependencies for the Business Entity Resolution pipeline.
+# Installed by src/bootstrap.sh into an isolated venv on Python 3.11.
+#
+# Core pipeline (rungs R0-R2: normalisation, blocking, features, matching).
+numpy==2.1.3
+pandas==2.2.3
+pyarrow==18.1.0
+scipy==1.14.1
+scikit-learn==1.5.2
+lightgbm==4.5.0
+rapidfuzz==3.10.1
+regex==2024.11.6
+tqdm==4.67.1
+psutil==6.1.0
+huggingface_hub==0.26.5
+
+# Embedding channel (rung R3). torch is pinned to the cu121 build because the
+# target machine runs driver 535.x / CUDA 12.2; install it with
+#   pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu121
+torch==2.5.1
+transformers==4.46.3
+sentence-transformers==3.3.1

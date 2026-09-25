@@ -1,2 +1,25 @@
-.venv
-dataset
+# ---- Environments (never commit; rebuild via code/business_entity_resolution/src/bootstrap.sh)
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# ---- Challenge data (2.4 GB, redistributed by the organisers, not ours to commit)
+dataset/
+
+# ---- Derived artefacts (regenerable; see README for the commands)
+work/            # country-partitioned parquet store (~864 MB)
+logs/
+*.parquet
+*.npy
+*.memmap
+
+# ---- Submission outputs (regenerable, and large once blocking is real)
+# Kept out of git deliberately: candidate_pairs.tsv reaches ~1 GB at full
+# candidate width. The submission ZIP is built from these, but the repo tracks
+# the code that produces them, not the files themselves.
+output/*.tsv
+*.tsv
+
+# ---- OS noise
+.DS_Store
