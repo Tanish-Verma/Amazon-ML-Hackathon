@@ -63,8 +63,20 @@ def dominant_script(text: str) -> str:
 # and the EDA's job is to measure the data as it is, not to measure whatever
 # the normaliser happens to do this week.
 
-_PUNCT = re.compile(r"[^\w\s]", re.UNICODE)
+# Strip punctuation and symbols by Unicode CATEGORY, not by `\w`.
+# `[^\w\s]` looks correct but silently destroys Indic scripts: their vowel
+# signs are combining marks (categories Mn/Mc) which `\w` does not match, so
+# प्राइवेट is shattered into "प र इव ट". Categories L*, N* and M* are all kept.
+_PUNCT = re.compile(r"[\p{P}\p{S}]", re.UNICODE) if hasattr(re, "_pypy") else None
 _WS = re.compile(r"\s+")
+
+
+def _strip_punct(text: str) -> str:
+    """Replace punctuation/symbol characters with spaces, preserving marks."""
+    return "".join(
+        " " if unicodedata.category(ch)[0] in ("P", "S", "C") else ch
+        for ch in text
+    )
 
 
 def basic_norm(text: str) -> str:
@@ -80,7 +92,7 @@ def basic_norm(text: str) -> str:
         else:
             out.append(ch)
     text = "".join(out).casefold()
-    return _WS.sub(" ", _PUNCT.sub(" ", text)).strip()
+    return _WS.sub(" ", _strip_punct(text)).strip()
 
 
 def char_ngrams(s: str, n: int = 3) -> set[str]:
@@ -252,7 +264,26 @@ def main() -> int:
     ap.add_argument("--gt", required=True, help="train_ground_truth.tsv")
     ap.add_argument("--out", default="reports/eda.md")
     ap.add_argument("--sample-entities", type=int, default=150_000)
+    ap.add_argument("--df-split", default=None,
+                    help="only profile token document frequency for this split "
+                         "(e.g. 'test', which includes the unseen France partition) and exit")
     args = ap.parse_args()
+
+    # Focused mode: the France DF profile is the direct evidence for whether
+    # derived stoplists generalise to an unseen country, so it is runnable on
+    # its own without redoing the full (4-minute) analysis.
+    if args.df_split:
+        out = [f"## Name-token document frequency — {args.df_split} split", ""]
+        for src in ("s1", "s2", "s3"):
+            recs = load_store(args.store, args.df_split, src)
+            out.append(f"\n**Source {src[-1]} ({args.df_split})** — {len(recs):,} records")
+            df_profile(recs, out)
+            del recs
+        print("\n".join(out))
+        with open(args.out, "w", encoding="utf-8") as f:
+            f.write("\n".join(out) + "\n")
+        print(f"\nwrote {args.out}")
+        return 0
 
     out: list[str] = ["# Phase 1 — EDA", ""]
 

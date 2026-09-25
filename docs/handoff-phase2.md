@@ -70,11 +70,16 @@ blocking stage's final candidate set).
 - **No true match crosses a country boundary**, so `country` is a safe partition
   key. Partition on the literal label; never hardcode `{US, India}`. The test set
   contains **France**, which is absent from training and is 15% of the score.
-- **A lexical pipeline reaches 99.86% of true matches.** Name-only 90.46%,
-  address-only 94.78%. Only 0.14% need anything cleverer.
+- **A lexical pipeline reaches 99.88% of true matches.** Name-only 90.43%,
+  address-only 94.82%. Only 0.12% need anything cleverer.
 - **Transliterated Indic names are solved by the address channel**, not by
-  embeddings: name-matching finds ~1% of them, but the union finds 98–99%,
+  embeddings: name-matching finds under 1% of them, but the union finds 98–99%,
   because street numbers survive transliteration.
+- **France generalisation is already measured, not assumed.** Token DF on the
+  test split: France `sarl` 28.3%, `sas` 20.1%, `eurl` 6.5%, `sasu` 4.1% — the
+  same band as US `llc` 26.9% / `inc` 18.0%. The same DF rule also catches French
+  function words (`de`, `du`, `des`) that an English stoplist would miss. This is
+  why derived stoplists beat hand-written tables; don't undo it.
 - **26% of Source-2/3 records match nothing.** Precision, not recall, decides the
   score.
 - Legal-form tokens dominate name document-frequency (India `limited` 59.1%,
@@ -93,9 +98,21 @@ and hardcodes per-country dictionaries, which is exactly what we must avoid).
    applies to Latin text but **must not** decompose Indic scripts — their vowel
    signs are combining marks and stripping them destroys the text. `src/eda.py`
    has a working version of this guard; reuse the idea.
-2. **Script-agnostic tokenisation.** Use Unicode word boundaries, never `[a-z]+`.
-   It must handle Latin, Devanagari, Tamil, Telugu, Kannada, Bengali, Gujarati,
-   Malayalam, Oriya and Gurmukhi — all confirmed present in the data.
+2. **Script-agnostic tokenisation — and we already know one way to get this
+   wrong.** The Phase 1 EDA originally used `[^\w\s]` to strip punctuation. That
+   looks correct and silently destroys every Indic script, because their vowel
+   signs are Unicode categories `Mn`/`Mc` which `\w` does not match:
+
+   ```
+   'प्राइवेट'  --[^\w\s]-->  'प र इव ट'        # shattered into loose consonants
+   ```
+
+   It surfaced as single Devanagari characters topping the document-frequency
+   table. The fix is to strip by Unicode *category* — remove `P*`/`S*`/`C*`, keep
+   `L*`/`N*`/`M*`. See `reports/eda.md` §7 and the corrected `basic_norm` in
+   `src/eda.py`. Your tokeniser must handle Latin, Devanagari, Tamil, Telugu,
+   Kannada, Bengali, Gujarati, Malayalam, Oriya and Gurmukhi — all confirmed
+   present — plus French accented Latin. Never `[a-z]+`, and never bare `\w`.
 3. **Derived stoplists, not hand-written ones.** Compute per-country token
    document frequency at runtime and down-weight high-DF tokens. A small
    hand-written legal-suffix list may exist *only* as a supplementary signal

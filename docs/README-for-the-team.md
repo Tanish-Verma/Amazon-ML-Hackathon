@@ -98,17 +98,17 @@ We measured it instead of assuming. Result:
 
 | Matching using... | Finds this % of true matches |
 |---|---|
-| Names only | 90.46% |
-| Addresses only | 94.78% |
-| **Either one** | **99.86%** |
+| Names only | 90.43% |
+| Addresses only | 94.82% |
+| **Either one** | **99.88%** |
 
-Only **0.14%** of matches are invisible to both. And for the transliterated
-Indian names specifically, name-matching finds ~1% — but the *address* finds
+Only **0.12%** of matches are invisible to both. And for the transliterated
+Indian names specifically, name-matching finds under 1% — but the *address* finds
 98–99% of them, because **street numbers don't change when you translate a
 name.** `6(29), C.I.T. Colony, Chennai` looks the same in every script.
 
 So the address channel solves the multilingual problem, and the expensive neural
-approach would buy us an extra 0.14%. Given that the score punishes wrong answers
+approach would buy us an extra 0.12%. Given that the score punishes wrong answers
 twice as hard as missing ones, that's not worth having.
 
 **This is why we're not spending our GPU time on embeddings.** We measured, and

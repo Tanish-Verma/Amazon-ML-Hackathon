@@ -370,17 +370,27 @@ metadata and parameter counts summed from the loaded weights — neither is from
 recall can a purely lexical pipeline reach?* That answer determines whether the embedding channel
 is on the critical path or optional.
 
-**RESULT — answered decisively. Lexical ceiling is 99.86%; only 0.14% of true matches are
-unreachable lexically.** Name alone 90.46%, address alone 94.78%. Transliterated Indic names are
-reachable ~1% by name but 98-99% via address, so **the address channel solves transliteration, not
-embeddings**. Distractors are 26.6% (S2) / 25.4% (S3) — precision, not recall, is where the score
-is decided. DF profiles confirm legal-form tokens sit in a high-frequency band shared across
-countries, so derived stopwords should generalise to France unchanged.
+**RESULT — answered decisively. Lexical ceiling is 99.88%; only 0.12% of true matches are
+unreachable lexically.** Name alone 90.43%, address alone 94.82%. Transliterated Indic names are
+reachable 0.2-1.0% by name but 98-99% via address, so **the address channel solves transliteration,
+not embeddings**. Distractors are 26.6% (S2) / 25.4% (S3) — precision, not recall, is where the
+score is decided.
+
+**France generalisation confirmed by measurement, not reasoning.** DF profiled on the test split
+(a frequency count needs no labels): France `sarl` 28.3% / `sas` 20.1% sit in the same band as US
+`llc` 26.9% / `inc` 18.0%. The same mechanism also catches French function words (`de`, `du`,
+`des`) that a hardcoded English stoplist would have missed. No French-specific table needed.
+
+**A bug was found and fixed in the EDA itself** — `[^\w\s]` shatters Indic scripts because their
+vowel signs are categories Mn/Mc. Corrected to strip by Unicode category. The headline moved only
+99.86% → 99.88% (the bug degraded the name channel only, so the original was a lower bound).
+See `reports/eda.md` §7 — it is the worked example Phase 2's tokeniser must not repeat.
 
 **PROPOSED PLAN CHANGE (needs your approval):** drop the embedding channel from Phase 3 blocking —
-0.14% recall cannot repay the GPU hours and 7.7 GB. Keep embeddings only as a candidate *matching
-feature* in Phase 4, where they address a real precision gap for Indic-script records pulled in by
-address. See `reports/eda.md` §6.
+0.12% recall cannot repay the GPU hours and storage. Keep embeddings only as a candidate *matching
+feature* in Phase 4, where the corrected per-script numbers show the classifier is blind for
+transliterated records. Deferrable: it changes the feature matrix only, leaving
+`candidate_pairs.tsv` untouched. See `reports/eda.md` §6.
 
 ---
 

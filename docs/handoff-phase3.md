@@ -75,11 +75,16 @@ blocking stage's final candidate set).
 - **No true match crosses a country boundary**, so `country` is a safe partition
   key. Partition on the literal label; never hardcode `{US, India}`. The test set
   contains **France**, which is absent from training and is 15% of the score.
-- **A lexical pipeline reaches 99.86% of true matches.** Name-only 90.46%,
-  address-only 94.78%. Only 0.14% need anything cleverer.
+- **A lexical pipeline reaches 99.88% of true matches.** Name-only 90.43%,
+  address-only 94.82%. Only 0.12% need anything cleverer.
 - **Transliterated Indic names are solved by the address channel**, not by
-  embeddings: name-matching finds ~1% of them, but the union finds 98–99%,
+  embeddings: name-matching finds under 1% of them, but the union finds 98–99%,
   because street numbers survive transliteration.
+- **France generalisation is already measured, not assumed.** Token DF on the
+  test split: France `sarl` 28.3%, `sas` 20.1%, `eurl` 6.5%, `sasu` 4.1% — the
+  same band as US `llc` 26.9% / `inc` 18.0%. The same DF rule also catches French
+  function words (`de`, `du`, `des`) that an English stoplist would miss. This is
+  why derived stoplists beat hand-written tables; don't undo it.
 - **26% of Source-2/3 records match nothing.** Precision, not recall, decides the
   score.
 - Legal-form tokens dominate name document-frequency (India `limited` 59.1%,
@@ -91,7 +96,7 @@ blocking stage's final candidate set).
 
 This phase sets the **recall ceiling** for the whole system: any true match not
 retrieved here is unrecoverable no matter how good the later model is. The EDA
-says a lexical approach can reach 99.86%, so the target is to actually realise
+says a lexical approach can reach 99.88%, so the target is to actually realise
 that in a real index at scale.
 
 Target files: `src/blocking_lexical.py`, `src/candidates.py`, plus `src/cli.py`
@@ -102,8 +107,8 @@ subcommands.
    work unchanged when France appears.
 
 2. **Build independent channels and take their union.** The EDA is unambiguous
-   that neither channel alone is enough (name 90.46%, address 94.78%, union
-   99.86%):
+   that neither channel alone is enough (name 90.43%, address 94.82%, union
+   99.88%):
    - **Channel A — name character n-grams.** 3-5 char n-grams, IDF-weighted per
      country, retrieved via a sparse inverted index with a per-token posting cap.
      Character n-grams are script-agnostic and typo-robust.
@@ -111,7 +116,7 @@ subcommands.
      word tokens. This is the channel that solves transliteration; give it real
      attention rather than treating it as a backstop.
    - **Channel C — name token sets.** Cheap, catches word reordering.
-   - **No embedding channel.** Phase 1 measured its value at 0.14% additional
+   - **No embedding channel.** Phase 1 measured its value at 0.12% additional
      recall, which cannot repay the GPU hours or storage. If you believe the
      evidence says otherwise, argue it with numbers before building it.
 
@@ -135,7 +140,7 @@ subcommands.
    arrays and interned strings.
 
 **Done when:** blocking runs on a train validation slice with measured macro
-recall (target >=0.98, given the 99.86% ceiling), the reduction ratio and size
+recall (target >=0.98, given the 99.88% ceiling), the reduction ratio and size
 distribution are reported per country, peak RSS and runtime are recorded, and
 the full-test runtime is extrapolated and shown to fit the deadline.
 
