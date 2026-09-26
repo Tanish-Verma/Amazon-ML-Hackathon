@@ -139,13 +139,72 @@ def cmd_baseline(args) -> int:
     return 0
 
 
+def cmd_block(args) -> int:
+    """Phase 3: generate the final candidate set and (on train) score its recall.
+
+    Runnable independently of matching, so blocking recall can be inspected on
+    its own -- which is exactly what the challenge asks for.
+    """
+    from src.blocking import DEFAULT_CHANNELS
+    from src.candidates import block_country, discover_countries, load_partition
+    from src.eval_blocking import evaluate
+
+    store = os.path.join(args.work_dir, "store")
+    countries = discover_countries(store, args.split)
+    print(f"  split={args.split} countries={countries} K={args.final_k} workers={args.workers}")
+
+    all_cands = {}
+    country_of = {}
+    corpus_sizes = {}
+    t0 = time.time()
+    for ctry in countries:
+        cands = block_country(store, args.split, ctry, final_k=args.final_k,
+                              specs=DEFAULT_CHANNELS, workers=args.workers)
+        all_cands.update(cands)
+        for qid in cands:
+            country_of[qid] = ctry
+        n = sum(len(load_partition(store, args.split, s, ctry)[0]) for s in ("s2", "s3"))
+        corpus_sizes[ctry] = n
+    print(f"\n  blocking done in {time.time()-t0:.1f}s for {len(all_cands):,} entities")
+
+    os.makedirs(args.out, exist_ok=True)
+    path = os.path.join(args.out, "candidate_pairs.tsv")
+    n = write_id_list_tsv(path, ["source1_entity_id", "candidate_entity_ids"],
+                          ((k, all_cands[k]) for k in all_cands))
+    print(f"  wrote {n:,} rows to {path}")
+
+    gt_path = os.path.join(args.data_dir, "train", "train_ground_truth.tsv")
+    if args.split == "train" and os.path.isfile(gt_path):
+        truth = {}
+        for row in stream_tsv(gt_path, GROUND_TRUTH_COLUMNS):
+            if row["source1_entity_id"] in all_cands:
+                raw = row["matched_entity_ids"]
+                truth[row["source1_entity_id"]] = raw.split(",") if raw else []
+        print()
+        report = evaluate(all_cands, truth, country_of, corpus_sizes)
+        print(report)
+        if args.report:
+            with open(args.report, "w", encoding="utf-8") as f:
+                f.write(f"# Phase 3 — blocking quality (split={args.split}, K={args.final_k})\n\n")
+                f.write(report + "\n")
+            print(f"\n  wrote {args.report}")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(prog="src.cli")
     ap.add_argument("--data-dir", default="dataset", help="folder containing train/ and test/")
     ap.add_argument("--work-dir", default="work", help="scratch area for derived artefacts")
     ap.add_argument("--out", default="output", help="submission output folder")
+    ap.add_argument("--split", default="test", choices=["train", "test"])
+    ap.add_argument("--final-k", type=int, default=30,
+                    help="candidates kept per S1 entity; this capped set IS candidate_pairs.tsv")
+    ap.add_argument("--workers", type=int, default=12,
+                    help="processes for feature extraction (shared machine: keep modest)")
+    ap.add_argument("--report", default=None, help="write the blocking-quality report here")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name, fn in (("verify", cmd_verify), ("prep", cmd_prep), ("baseline", cmd_baseline)):
+    for name, fn in (("verify", cmd_verify), ("prep", cmd_prep),
+                     ("baseline", cmd_baseline), ("block", cmd_block)):
         sub.add_parser(name).set_defaults(func=fn)
     args = ap.parse_args()
     return args.func(args)
