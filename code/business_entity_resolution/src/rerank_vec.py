@@ -106,31 +106,23 @@ class SparseStore:
 def _rowwise_inter(Qm: sp.csr_matrix, Cm: sp.csr_matrix,
                    qrows: np.ndarray, crows: np.ndarray,
                    groups: np.ndarray | None = None) -> np.ndarray:
-    """|A n B| for aligned row pairs.
+    """|A n B| for aligned row pairs, vectorised.
 
-    The naive form -- ``Qm[qrows].multiply(Cm[crows])`` -- looks vectorised but is
-    badly wasteful here: ``qrows`` holds ~1M entries with only ~2,500 DISTINCT
-    values, because every query repeats once per candidate in its pool. That
-    materialises each query row about a thousand times over.
+    NOTE on a rejected optimisation. ``qrows`` holds ~1M entries with only ~20k
+    distinct values (each query repeats once per candidate), so this materialises
+    each query row many times over. Walking the query groups and broadcasting one
+    query row per group removes that duplication -- and MEASURED 10% SLOWER
+    (194s vs 176s per 20k batch on France), because it replaces one large
+    vectorised gather with ~100k small scipy calls whose per-call overhead
+    dominates. scipy's fancy-index gather is fast C; the redundancy is cheaper
+    than the Python loop. Keeping the simple form.
 
-    Instead we walk the query groups (``groups`` gives the boundaries of each
-    run of equal qrows) and broadcast ONE query row against its candidate block.
-    scipy broadcasts a (1, V) row across (k, V) in ``multiply``, so the inner work
-    stays vectorised while the duplicated gather disappears. Candidate rows are
-    gathered once, which we need anyway.
+    ``groups`` is accepted and ignored, so callers need not change.
     """
-    n = len(qrows)
-    out = np.zeros(n, dtype=np.float32)
-    if Qm.shape[1] == 0 or Cm.shape[1] == 0 or n == 0:
-        return out
-    if groups is None:
-        groups = _query_groups(qrows)
-    for lo, hi in groups:
-        qrow = Qm[qrows[lo]]                       # 1 x V, fetched once
-        block = Cm[crows[lo:hi]]                   # k x V
-        prod = block.multiply(qrow)
-        out[lo:hi] = np.asarray(prod.sum(axis=1)).ravel()
-    return out
+    if Qm.shape[1] == 0 or Cm.shape[1] == 0 or len(qrows) == 0:
+        return np.zeros(len(qrows), dtype=np.float32)
+    prod = Qm[qrows].multiply(Cm[crows])
+    return np.asarray(prod.sum(axis=1)).ravel().astype(np.float32)
 
 
 def _query_groups(qrows: np.ndarray) -> np.ndarray:
