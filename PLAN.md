@@ -1,6 +1,6 @@
 # PLAN.md — Business Entity Resolution (Amazon ML Challenge 2026)
 
-**Status:** **Phases 0-1 complete (2026-09-25).** Awaiting sign-off for Phase 2.
+**Status:** **Phases 0-2 complete (Phase 2 verified 2026-09-26).** Awaiting sign-off for Phase 3.
 Environment live on `cmslab`, schema verified, R0 submission passes the validator.
 **Author:** lead ML engineer · **Reviewer/PO:** Tanish
 **Written:** 2026-09-25
@@ -417,6 +417,24 @@ transliterated records. Deferrable: it changes the feature matrix only, leaving
 
 **Done when:** tests pass on the §1.5 examples plus a France set (SARL/R./BD), and normalization
 throughput is measured (must sustain ≥100k records/sec/core or it becomes the bottleneck at 20M).
+
+**RESULT — verified, Phase 3 may proceed.** Authored by teammate as a notebook; extracted to
+`src/normalize.py` with `tests/test_normalize.py` (14/14 pass). Verified on `cmslab` against real
+data — full report in `reports/phase2.md`:
+
+* **0 crashes and 0 names normalising to empty across all 24,229,173 records.**
+* **Reachability regression: exactly preserves the 99.88% ceiling** (name 90.43%, address 94.82%,
+  all deltas 0.00 vs `reports/eda.md`). Nothing lost.
+* **DF stoplists confirmed on real per-country corpora including France:** `sarl` 28% / `sas` 20% /
+  `eurl` 7% caught purely by frequency, plus the function word `de` an English stoplist would miss.
+  No French-specific code.
+* **Throughput 37,463 rec/sec/core — misses the ≥100k target.** Recorded as a missed bar rather
+  than a problem: 24.2M records normalise in ~11 min on one core of 48.
+* **Change applied:** default `min_df_fraction` 0.02 → 0.05, because at 0.02 the US stoplist also
+  eats `care`/`associates`/`center`/`group`/`partners`/`corp`.
+* Two non-blocking gaps: no `address_clean`/`address_tokens` output (Phase 3 can call `clean_text`
+  on addresses directly), and TLDs not stripped from `joined` (harmless — char-3gram Jaccard for
+  the domain-vs-plain-name case is 0.870).
 
 ---
 
