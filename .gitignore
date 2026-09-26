@@ -23,3 +23,10 @@ output/*.tsv
 
 # ---- OS noise
 .DS_Store
+
+# ---- Trained artefacts
+# models/reranker.pkl IS committed: 2.2 KB (16 coefficients + a scaler), and it
+# makes the pipeline runnable without re-deriving the pair-feature cache.
+work/paircache/          # labelled pair features, ~250 MB per country, regenerable
+*.npz
+models/*.bin
