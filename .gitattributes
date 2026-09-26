@@ -1,0 +1,2 @@
+*.npz filter=lfs diff=lfs merge=lfs -text
+output/*.tsv filter=lfs diff=lfs merge=lfs -text

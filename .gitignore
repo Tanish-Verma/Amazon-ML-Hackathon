@@ -27,6 +27,10 @@ output/*.tsv
 # ---- Trained artefacts
 # models/reranker.pkl IS committed: 2.2 KB (16 coefficients + a scaler), and it
 # makes the pipeline runnable without re-deriving the pair-feature cache.
-work/paircache/          # labelled pair features, ~250 MB per country, regenerable
-*.npz
+# work/paircache/*.npz IS committed via Git LFS (460 MB): the labelled training
+# pairs. Not cheaply regenerable -- ~25 min of retrieval + feature computation --
+# so shipping it lets anyone retrain the reranker immediately.
+work/store/              # country-partitioned parquet, regenerable in ~23s
+work/*.tsv               # intermediate candidate files
+prod/                    # production candidate output (regenerable; see docs/DATA.md)
 models/*.bin
