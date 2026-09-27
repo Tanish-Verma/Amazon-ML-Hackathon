@@ -7,6 +7,24 @@
 | `models/reranker.pkl` | 2.2 KB | The trained reranker — 16 coefficients + a scaler. Tiny, and it makes the pipeline runnable without rebuilding anything. |
 | `work/paircache/pairs_India.npz` | 243 MB | **Git LFS.** 11.4M labelled train pairs with all 16 features computed. |
 | `work/paircache/pairs_US.npz` | 217 MB | **Git LFS.** 11.8M labelled train pairs. |
+| `trainsplit/cand_train_India.tsv` | 99 MB | **Git LFS.** 150k train entities at K=50 — the labelled dev/confirm set. |
+| `trainsplit/cand_train_US.tsv` | 99 MB | **Git LFS.** 150k train entities at K=50. |
+
+### The two train-side artefacts, and when to use which
+
+**`trainsplit/cand_train_*.tsv` is what Phases 4-6 should develop against.** 300,000
+train entities with exactly the candidates the matcher will see in production — same
+model, same depth 1000, same K=50 as the test run. Join against
+`dataset/train/train_ground_truth.tsv` to get labels. Configuration parity with the test
+run matters: a matcher tuned on a different candidate distribution than it meets at
+inference is quietly miscalibrated, and that failure shows up on the leaderboard rather
+than in validation.
+
+**`work/paircache/*.npz` is for fast experiments.** 4,000 entities per country, but the
+full depth-1000 pool with all 16 features *already computed* — so model comparisons,
+threshold sweeps and depth studies run in seconds rather than hours. This is how the
+depth-truncation sweep was measured in under a minute. Too small to train a final
+matcher on, and it is the 1000-deep pool rather than the production top-50.
 
 The pair caches ship because they are **not cheaply regenerable** — rebuilding them
 means ~25 minutes of retrieval plus feature computation per country. With them you

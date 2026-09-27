@@ -1,6 +1,6 @@
 # PLAN.md — Business Entity Resolution (Amazon ML Challenge 2026)
 
-**Status:** **Phases 0-2 complete (Phase 2 verified 2026-09-26).** Awaiting sign-off for Phase 3.
+**Status:** **Phases 0-3 complete (Phase 3 verified on the production path 2026-09-27).** Blocking recall **98.09%** macro over 300k train entities. `output/candidate_pairs.tsv` exists for all 1,732,544 test entities and passes validation. Phases 4-9 remain — self-contained prompts in `docs/handoff-phase{4..9}.md`.
 Environment live on `cmslab`, schema verified, R0 submission passes the validator.
 **Author:** lead ML engineer · **Reviewer/PO:** Tanish
 **Written:** 2026-09-25
@@ -466,6 +466,55 @@ country partition.
 measured macro recall (target ≥0.95 lexical-only, to be revised by the Phase 1 transliteration
 number), reduction ratio reported, peak RSS under 4 GB, and full-test runtime extrapolated and
 confirmed to fit the budget.
+
+**RESULT — Phase 3 complete and verified on the production code path.**
+
+Final architecture: four cheap retrieval channels → RRF fusion → learned rerank → top-50.
+
+| measurement | India | US |
+|---|---|---|
+| Pool recall @ depth 1000 | 98.8% | 99.3% |
+| **Production macro recall @ K=50** | **0.9716** | **0.9902** |
+| Reduction ratio | 0.999988 | 0.999992 |
+
+**Overall 0.9809 macro recall over 300,000 train entities**, measured by running the
+*identical* production pipeline on a train split and scoring against ground truth
+(`src/score_candidates.py`, `reports/phase3_production_accuracy.md`). This mattered
+because every earlier figure came from diagnostics reading cached features, and the
+array-based pool refactor had never been scored against labels. Predicted 97.4% /
+99.3%, delivered 97.16% / 99.02% — within noise, no regression. Only **541 of
+300,000** entities (0.18%) lost every true match.
+
+**Four defects found and fixed, each measured** (full tables in `reports/phase3_blocking.md`):
+1. Fusing channels by summing raw cosines cost **~16 points** of recall — score
+   magnitudes differ per channel, so name candidates evicted address candidates,
+   which is fatal for transliterated records whose only route is the address.
+   Fixed with reciprocal rank fusion.
+2. `max_df_frac=0.002` pruned away the signal: character trigrams are so skewed that
+   queries retained only 2.3 usable features. **~5 points**, fixed at 0.01. Every
+   earlier sweep had gone *tighter*, i.e. further the wrong way.
+3. Retrieval was 92% of runtime and single-threaded. `sparse_dot_topn` gave **4.9x**;
+   multiprocessing had given only 1.45x because the operation is memory-bandwidth bound.
+4. Per-record Python object stores (40 GB of frozensets) cannot survive fork —
+   CPython writes refcounts into every object a worker touches, so pages were copied
+   rather than shared, exhausting a 125 GB machine twice. Binary sparse matrices:
+   **0.68 GB**, and no forking needed at all.
+
+**Correction to Phase 1's headline.** The "99.88% lexical ceiling" measured pairwise
+*reachability* — whether a pair shares any signal — not *retrievability* at top-K. The
+honest bound is the pool ceiling at a stated depth. Always quote a depth.
+
+**Measured dead ends, recorded so they are not re-tested:** an embedding channel is
+worth +0.12% recall; LightGBM as reranker scored 54% @10 against logistic regression's
+94%; depth 700 costs 0.17% for only 1.43x; a per-query broadcast to avoid duplicated
+gathers ran 10% *slower* than one large vectorised gather.
+
+**Deliverables**
+- `output/candidate_pairs.tsv` — 1,732,544 rows, 50 candidates each, validator PASS
+- `trainsplit/cand_train_{India,US}.tsv` — 300k labelled train entities, same config
+- `work/paircache/*.npz` — 23.2M pre-featurised labelled pairs (Git LFS)
+- `models/reranker.pkl` — the trained reranker, 2.2 KB
+
 
 ---
 

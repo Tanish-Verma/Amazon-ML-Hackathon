@@ -17,7 +17,7 @@ New here? Read in this order:
 | 0 | Environment, schema checks, output plumbing | ✅ done |
 | 1 | EDA — the noise, the ceiling, what actually matters | ✅ done |
 | 2 | Normalisation (script-agnostic, 9 Indic scripts + French) | ✅ done, verified on 24.2M records |
-| 3 | **Blocking + reranking → `candidate_pairs.tsv`** | ✅ **done, ~98.2% recall** — production run in progress |
+| 3 | **Blocking + reranking → `candidate_pairs.tsv`** | ✅ **done — 98.09% recall measured on the production path** |
 | 4 | Features for the final matcher | ⬜ **ready to start** |
 | 5 | Matching model + decision rule | ⬜ **highest-value phase** |
 | 6 | Validation harness | ⬜ |
@@ -33,10 +33,25 @@ passes the official validator — so we can never end up with nothing to submit.
 
 | measurement | value |
 |---|---|
-| Blocking pool recall (depth 1000) | 98.8% India / 99.3% US |
-| After reranking, at K=50 | **97.4% India / 99.3% US** |
-| Projected test-set recall | **~98.2%** |
-| First (broken) implementation | 71.0% |
+| Pool recall (depth 1000) | 98.8% India / 99.3% US |
+| **Production macro recall @ K=50** | **0.9716 India / 0.9902 US** |
+| **Overall, 300k train entities** | **0.9809** |
+| Reduction ratio | 0.99999 |
+| First (broken) implementation | 0.7102 |
+
+Verified by running the *identical* production pipeline on a train split and scoring
+against ground truth — not by a diagnostic reading cached features. See
+`reports/phase3_production_accuracy.md`.
+
+**Files you need to start Phase 4** (all via `git lfs pull`):
+
+| file | what |
+|---|---|
+| `trainsplit/cand_train_{India,US}.tsv` | 300k labelled train entities at K=50 — **develop against this** |
+| `dataset/train/train_ground_truth.tsv` | the labels (join on `source1_entity_id`) |
+| `work/paircache/*.npz` | 23.2M pre-featurised pairs — for fast model experiments |
+| `models/reranker.pkl` | the trained reranker |
+| `output/candidate_pairs.tsv` | **test** candidates — final inference only, no labels exist |
 
 `candidate_pairs.tsv` gives every Source-1 entity **50 candidates**, containing
 ~98% of its true matches. Everything downstream works inside that 50.
