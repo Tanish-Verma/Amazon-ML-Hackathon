@@ -1,6 +1,6 @@
 # Project status, what's left, and how to do it
 
-**Updated:** 2026-09-26 · **Deadline:** 2026-09-27 23:59 IST
+**Updated:** 2026-10-01 · **Challenge complete. Final F0.5 ~0.90.**
 
 New here? Read in this order:
 1. `docs/README-for-the-team.md` — what the problem is, in plain English
@@ -10,7 +10,11 @@ New here? Read in this order:
 
 ---
 
-## 1. Status
+## 1. Status — all phases complete
+
+The hackathon is over. Final leaderboard score **~0.90 F0.5**. This file is kept as the
+project's status record; the methodology write-up is `Documentation_template.md`.
+
 
 | Phase | What it is | Status |
 |---|---|---|
@@ -18,12 +22,12 @@ New here? Read in this order:
 | 1 | EDA — the noise, the ceiling, what actually matters | ✅ done |
 | 2 | Normalisation (script-agnostic, 9 Indic scripts + French) | ✅ done, verified on 24.2M records |
 | 3 | **Blocking + reranking → `candidate_pairs.tsv`** | ✅ **done — 98.09% recall measured on the production path** |
-| 4 | Features for the final matcher | ⬜ **ready to start** |
-| 5 | Matching model + decision rule | ⬜ **highest-value phase** |
-| 6 | Validation harness | ⬜ |
-| 7 | Unseen-country (France) stress test | ⬜ gates touching test data |
-| 8 | Full test inference + packaging | ⬜ |
-| 9 | Reproducibility + methodology write-up | ⬜ |
+| 4 | Features for the final matcher | ✅ done |
+| 5 | Matching model + decision rule | ✅ done |
+| 6 | Validation harness | ✅ done |
+| 7 | Unseen-country (France) stress test | ✅ done |
+| 8 | Full test inference + packaging | ✅ done |
+| 9 | Reproducibility + methodology write-up | ✅ done |
 
 **We already have a submittable file.** `output/matching_results.tsv` currently
 predicts "no match" for everything and scores ~0.056. Worthless as a score, but it

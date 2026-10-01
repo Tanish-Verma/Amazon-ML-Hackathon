@@ -37,6 +37,14 @@ dataset/*.tsv
  [7] SCORE     pooled logistic regression (one matmul)
  [8] CUT       top-50 per query
  [9] WRITE     append rows to TSV, free the batch, next batch
+                            │
+                            ▼  ════════ matching (Phases 4-8) ════════
+                            │
+[10] FEATURES  16 columns (or 23 with src/features.py)   src/rerank_vec.py
+[11] MATCH     LightGBM + isotonic calibration           src/model.py
+[12] DECIDE    threshold 0.6 · margin 0.2 ·              src/decide.py
+               globally exclusive assignment
+[13] ASSEMBLE  matching_results.tsv + audit              src/phase8.py
 ```
 
 **Why it streams:** 1.73M queries × 1000 candidates is ~1.7 **billion** pool
@@ -47,12 +55,13 @@ batches and released, so peak memory depends on the *corpus*, not the query coun
 
 | stage | measurement |
 |---|---|
-| Blocking pool recall (depth 1000) | **98.8% India / 99.3% US** |
-| After rerank, at K=50 | **97.4% India / 99.3% US** |
-| Projected test-set recall @ K=50 | **~98.2%** |
-| First (broken) implementation, for contrast | 71.0% |
+| Blocking pool recall (depth 1000) | 98.8% India / 99.3% US |
+| **Blocking recall @ K=50** (production path, 300k train entities) | **0.9809** |
+| **Matcher validation macro-F0.5** | **0.9043** |
+| **Leaderboard F0.5** | **~0.90** |
+| First (broken) blocking implementation, for contrast | 0.7102 |
 
-Full evidence: `reports/phase3_blocking.md`.
+Full evidence in `reports/`.
 
 ## 3. Folder structure
 
@@ -73,6 +82,17 @@ code/business_entity_resolution/
 │   ├── train_reranker.py      fits + saves the pooled logistic regression
 │   ├── run_blocking.py        ★ production entry point → candidate_pairs.tsv
 │   ├── scoring.py             macro-F0.5 metric, spec-exact
+│   ├── features.py            Phase 4: 23-column feature extension
+│   ├── model.py               ★ Phase 5: LightGBM + isotonic calibration
+│   ├── decide.py              ★ Phase 5: exclusive assignment decision rule
+│   ├── predict_phase5.py      Phase 5 inference
+│   ├── split.py               Phase 6: stratified entity holdouts
+│   ├── validate_phase6.py     Phase 6: validation harness
+│   ├── generalization.py      Phase 7: country-transfer + ablation evaluator
+│   ├── phase8.py              ★ Phase 8: assemble + audit the final TSVs
+│   ├── phase9.py              Phase 9: submission packaging
+│   ├── pipeline.py            integrated Phase 4-8 orchestration
+│   ├── score_candidates.py    score a candidate TSV against ground truth
 │   ├── eda.py                 Phase 1 exploratory analysis
 │   ├── cli.py                 verify / prep / baseline / block subcommands
 │   └── diagnostics/           experiments behind the reported numbers (re-runnable,
